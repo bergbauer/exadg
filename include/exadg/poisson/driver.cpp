@@ -103,7 +103,7 @@ Driver<dim, Number>::setup(std::shared_ptr<ApplicationBase<dim, Number>> app,
   application->set_field_functions(field_functions);
 
   // compute aspect ratio
-  if(false)
+  if(true)
   {
     // this variant is only for comparison
     double AR = calculate_aspect_ratio_vertex_distance(*triangulation, mpi_comm);

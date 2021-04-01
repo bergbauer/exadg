@@ -193,8 +193,19 @@ private:
     // appear to be a setting available in deal.II
     PETScWrappers::PreconditionBoomerAMG::AdditionalData boomer_data;
     boomer_data.symmetric_operator               = amg_data.data.elliptic;
-    boomer_data.strong_threshold                 = 0.25;
-    boomer_data.aggressive_coarsening_num_levels = 2;
+    boomer_data.strong_threshold                 = 0.5;
+    boomer_data.aggressive_coarsening_num_levels = 0;
+    boomer_data.output_details                   = true;
+    boomer_data.relaxation_type_up =
+      PETScWrappers::PreconditionBoomerAMG::AdditionalData::RelaxationType::Chebyshev;
+    boomer_data.relaxation_type_down =
+      PETScWrappers::PreconditionBoomerAMG::AdditionalData::RelaxationType::Chebyshev;
+    boomer_data.relaxation_type_coarse =
+      PETScWrappers::PreconditionBoomerAMG::AdditionalData::RelaxationType::Chebyshev;
+    boomer_data.n_sweeps_coarse = amg_data.data.smoother_sweeps;
+    boomer_data.tol             = 0.0;
+    boomer_data.max_iter        = amg_data.data.n_cycles;
+    boomer_data.w_cycle         = true;
     amg.initialize(system_matrix, boomer_data);
 #else
     AssertThrow(false, ExcMessage("deal.II is not compiled with PETSc!"));
