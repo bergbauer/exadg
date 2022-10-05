@@ -108,6 +108,9 @@ enum_to_string(Preconditioner const enum_type)
     case Preconditioner::BlockJacobi:
       string_type = "BlockJacobi";
       break;
+    case Preconditioner::AdditiveSchwarz:
+      string_type = "AdditiveSchwarz";
+      break;
     case Preconditioner::Multigrid:
       string_type = "Multigrid";
       break;

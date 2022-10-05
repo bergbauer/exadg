@@ -29,15 +29,11 @@ namespace ExaDG
  */
 template<typename Number>
 void
-initialize_block_jacobi_matrices_with_zero(std::vector<dealii::LAPACKFullMatrix<Number>> & matrices)
+initialize_block_jacobi_matrices_with_zero(std::vector<dealii::FullMatrix<Number>> & matrices)
 {
   // initialize matrices
-  for(typename std::vector<dealii::LAPACKFullMatrix<Number>>::iterator it = matrices.begin();
-      it != matrices.end();
-      ++it)
-  {
-    *it = 0;
-  }
+  for(auto & m : matrices)
+    m = 0;
 }
 
 

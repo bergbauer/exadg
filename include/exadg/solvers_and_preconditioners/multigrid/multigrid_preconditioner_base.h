@@ -297,6 +297,9 @@ private:
   void
   initialize_chebyshev_smoother_block_jacobi(Operator & matrix, unsigned int level);
 
+  void
+  initialize_chebyshev_smoother_additive_schwarz(Operator & matrix, unsigned int level);
+
   /*
    * Coarse grid solver.
    */

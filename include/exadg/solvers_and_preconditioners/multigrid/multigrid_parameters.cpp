@@ -236,6 +236,9 @@ enum_to_string(PreconditionerSmoother const enum_type)
     case PreconditionerSmoother::BlockJacobi:
       string_type = "BlockJacobi";
       break;
+    case PreconditionerSmoother::AdditiveSchwarz:
+      string_type = "AdditiveSchwarz";
+      break;
     default:
       AssertThrow(false, dealii::ExcMessage("Not implemented."));
       break;

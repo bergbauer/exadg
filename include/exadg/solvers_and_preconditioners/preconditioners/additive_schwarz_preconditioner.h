@@ -1,0 +1,91 @@
+/*  ______________________________________________________________________
+ *
+ *  ExaDG - High-Order Discontinuous Galerkin for the Exa-Scale
+ *
+ *  Copyright (C) 2021 by the ExaDG authors
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *  ______________________________________________________________________
+ */
+
+#ifndef INCLUDE_SOLVERS_AND_PRECONDITIONERS_ADDITIVESCHWARZPRECONDITIONER_H_
+#define INCLUDE_SOLVERS_AND_PRECONDITIONERS_ADDITIVESCHWARZPRECONDITIONER_H_
+
+#include <deal.II/lac/sparse_matrix.h>
+
+#include <exadg/solvers_and_preconditioners/preconditioners/preconditioner_base.h>
+
+namespace ExaDG
+{
+template<typename Operator>
+class AdditiveSchwarzPreconditioner : public PreconditionerBase<typename Operator::value_type>
+{
+public:
+  typedef typename PreconditionerBase<typename Operator::value_type>::VectorType VectorType;
+  typedef typename PreconditionerBase<dealii::TrilinosScalar>::VectorType        VectorTypeDouble;
+
+  // distributed sparse system matrix
+  dealii::TrilinosWrappers::SparseMatrix system_matrix;
+
+  AdditiveSchwarzPreconditioner(Operator const & underlying_operator_in)
+    : underlying_operator(underlying_operator_in)
+  {
+    // initialize block Jacobi
+    underlying_operator.update_block_diagonal_preconditioner();
+    // underlying_operator.calculate_block_diagonal_preconditioner();
+    underlying_operator.assemble_as_matrix(system_matrix);
+  }
+
+  /*
+   *  This function updates the block Jacobi preconditioner.
+   *  Make sure that the underlying operator has been updated
+   *  when calling this function.
+   */
+  void
+  update()
+  {
+    underlying_operator.update_block_diagonal_preconditioner();
+    underlying_operator.assemble_as_matrix(system_matrix);
+  }
+
+  /*
+   *  This function applies the block Jacobi preconditioner.
+   *  Make sure that the block Jacobi preconditioner has been
+   *  updated when calling this function.
+   */
+  void
+  vmult(VectorType & dst, VectorType const & src) const
+  {
+    VectorTypeDouble dst_double;
+    dst_double.reinit(dst, false);
+    VectorTypeDouble src_double;
+    src_double.reinit(src, true);
+    src_double = src;
+
+    system_matrix.vmult(dst_double, src_double);
+
+    // convert: double -> Number
+    dst.copy_locally_owned_data_from(dst_double);
+
+    //    underlying_operator.apply_inverse_block_diagonal(dst, src);
+  }
+
+private:
+  Operator const & underlying_operator;
+};
+
+} // namespace ExaDG
+
+
+#endif /* INCLUDE_SOLVERS_AND_PRECONDITIONERS_ADDITIVESCHWARZPRECONDITIONER_H_ */
