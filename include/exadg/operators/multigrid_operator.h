@@ -134,6 +134,12 @@ public:
     pde_operator->apply_inverse_block_diagonal(dst, src);
   }
 
+  virtual void
+  assemble_as_matrix(dealii::TrilinosWrappers::SparseMatrix & as_matrix) const
+  {
+    pde_operator->assemble_as_matrix(as_matrix);
+  }
+
 #ifdef DEAL_II_WITH_TRILINOS
   void
   init_system_matrix(dealii::TrilinosWrappers::SparseMatrix & system_matrix,
