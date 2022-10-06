@@ -67,18 +67,33 @@ public:
   void
   vmult(VectorType & dst, VectorType const & src) const
   {
-    VectorTypeDouble dst_double;
-    dst_double.reinit(dst, false);
-    VectorTypeDouble src_double;
-    src_double.reinit(src, true);
-    src_double = src;
+    underlying_operator.apply_inverse_block_diagonal(dst, src);
 
-    system_matrix.vmult(dst_double, src_double);
+    const bool check_vmult = false;
 
-    // convert: double -> Number
-    dst.copy_locally_owned_data_from(dst_double);
+    if(check_vmult)
+    {
+      VectorType dst2;
+      dst2.reinit(dst, false);
 
-    //    underlying_operator.apply_inverse_block_diagonal(dst, src);
+      VectorTypeDouble dst_double;
+      dst_double.reinit(dst, false);
+      VectorTypeDouble src_double;
+      src_double.reinit(src, true);
+      src_double = src;
+
+      system_matrix.vmult(dst_double, src_double);
+
+      // convert: double -> Number
+      dst2.copy_locally_owned_data_from(dst_double);
+
+      std::cout << "dst l2:  " << dst.l2_norm() << std::endl;
+      std::cout << "dst2 l2: " << dst2.l2_norm() << std::endl;
+
+      dst2.add(-1., dst);
+
+      std::cout << "difference between dst and dst2 is: " << dst2.l2_norm() << std::endl;
+    }
   }
 
 private:

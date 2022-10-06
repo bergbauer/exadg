@@ -557,6 +557,28 @@ OperatorBase<dim, Number, n_components>::apply_inverse_block_diagonal(VectorType
     // currently use this function since matrices contains inverses
     apply_block_diagonal_matrix_based(dst, src);
   }
+
+//  dealii::Vector<double> vector_src, vector_dst;
+//
+//  dealii::DoFHandler<dim> const & dof_handler =
+//    this->matrix_free->get_dof_handler(this->data.dof_index);
+//
+//  for (const auto &cell : dof_handler.active_cell_iterators())
+//  {
+//    if (cell->is_locally_owned() == false)
+//      continue;
+//
+//    const unsigned int dofs_per_cell = cell->get_fe().n_dofs_per_cell();
+//
+//    vector_src.reinit(dofs_per_cell);
+//    vector_dst.reinit(dofs_per_cell);
+//
+//    cell->get_dof_values(src, vector_src);
+//
+//    matrices[cell->active_cell_index()].vmult(vector_dst, vector_src);
+//
+//    cell->distribute_local_to_global(vector_dst, dst);
+//  }
 }
 
 template<int dim, typename Number, int n_components>
@@ -1462,7 +1484,7 @@ OperatorBase<dim, Number, n_components>::cell_loop_apply_block_diagonal_matrix_b
   {
     this->reinit_cell(cell);
 
-    integrator->read_dof_values(src);
+    integrator->read_dof_values_plain(src);
 
     for(unsigned int v = 0; v < vectorization_length; ++v)
     {
@@ -1478,7 +1500,7 @@ OperatorBase<dim, Number, n_components>::cell_loop_apply_block_diagonal_matrix_b
         integrator->begin_dof_values()[j][v] = dst_vector(j);
     }
 
-    integrator->distribute_local_to_global(dst);
+    integrator->distribute_local_to_global_plain(dst);
   }
 }
 
@@ -2086,6 +2108,10 @@ OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatri
       else
         cell->get_dof_indices(dof_indices);
 
+      for(unsigned int i = 0; i < dof_indices.size(); ++i)
+        cell_index_neighbors[dof_indices[i]].push_back(
+          std::pair<unsigned int, unsigned int>(cell->active_cell_index(), i));
+
       if(!is_dg)
       {
         // in the case of CG: shape functions are not ordered
@@ -2096,10 +2122,6 @@ OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatri
         for(unsigned int j = 0; j < dof_indices.size(); j++)
           dof_indices[j] = temp[matrix_free->get_shape_info().lexicographic_numbering[j]];
       }
-
-      for(unsigned int i = 0; i < dof_indices.size(); ++i)
-        cell_index_neighbors[dof_indices[i]].push_back(
-          std::pair<unsigned int, unsigned int>(cell->active_cell_index(), i));
 
       // choose the version of distribute_local_to_global with a single
       // `dof_indices` argument to indicate that we write to a diagonal
@@ -2127,17 +2149,6 @@ OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatri
     auto & local_dof_indices = all_dof_indices[cell->active_cell_index()];
     local_dof_indices.resize(cell->get_fe().n_dofs_per_cell());
     cell->get_dof_indices(local_dof_indices);
-
-    if(!is_dg)
-    {
-      // in the case of CG: shape functions are not ordered
-      // lexicographically see
-      // (https://www.dealii.org/8.5.1/doxygen/deal.II/classFE__Q.html)
-      // so we have to fix the order
-      auto temp = local_dof_indices;
-      for(unsigned int j = 0; j < local_dof_indices.size(); j++)
-        local_dof_indices[j] = temp[matrix_free->get_shape_info().lexicographic_numbering[j]];
-    }
   }
 
   dealii::SparseMatrixTools::restrict_to_full_matrices<SparseMatrix,
@@ -2164,17 +2175,6 @@ OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatri
       else
         cell->get_dof_indices(dof_indices);
 
-      if(!is_dg)
-      {
-        // in the case of CG: shape functions are not ordered
-        // lexicographically see
-        // (https://www.dealii.org/8.5.1/doxygen/deal.II/classFE__Q.html)
-        // so we have to fix the order
-        auto temp = dof_indices;
-        for(unsigned int j = 0; j < dof_indices.size(); j++)
-          dof_indices[j] = temp[matrix_free->get_shape_info().lexicographic_numbering[j]];
-      }
-
       // get reference to cell matrix in global block matrix
       auto & cell_matrix = matrices[cell_batch_index * vectorization_length + v];
 
@@ -2184,20 +2184,8 @@ OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatri
       // save cell matrix in global block matrix
       cell_matrix = overlapped_cell_matrix;
 
-#if 0
-      std::cout << "overlapped" << std::endl;
-      cell_matrix.print_formatted(std::cout, 3, true, 0, "0");
-      std::cout << std::endl;
-#endif
-
       // invert overlapped cell matrix
       cell_matrix.invert(cell_matrix);
-
-#if 0
-      std::cout << "inverse" << std::endl;
-      cell_matrix.print_formatted(std::cout, 3, true, 0, "0");
-      std::cout << std::endl;
-#endif
 
       // scale inverse matrix symmetrically
       for(unsigned int i = 0; i < dof_indices.size(); ++i)
@@ -2216,12 +2204,21 @@ OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatri
       dealii::FullMatrix<dealii::TrilinosScalar> inverse_matrix(dofs, dofs);
       inverse_matrix = cell_matrix;
 
-      // choose the version of distribute_local_to_global with a single
-      // `dof_indices` argument to indicate that we write to a diagonal
-      // block of the matrix (vs 2 for off-diagonal ones); this implies a
-      // non-zero entry is added to the diagonal of constrained matrix
-      // rows, ensuring positive definiteness
-      constraint_double.distribute_local_to_global(inverse_matrix, dof_indices, as_matrix);
+      // reorder cell_matrix to matrix free numbering
+      if(!is_dg)
+      {
+        CellMatrix temp = cell_matrix;
+
+        const auto & lexicographic_numbering =
+          matrix_free->get_shape_info().lexicographic_numbering;
+
+        for(unsigned int i = 0; i < dof_indices.size(); i++)
+          for(unsigned int j = 0; j < dof_indices.size(); j++)
+            cell_matrix(i, j) = temp(lexicographic_numbering[i], lexicographic_numbering[j]);
+      }
+
+      // assemble into global additive Schwarz preconditioner matrix
+      cell->distribute_local_to_global(inverse_matrix, as_matrix);
     }
   }
 }
