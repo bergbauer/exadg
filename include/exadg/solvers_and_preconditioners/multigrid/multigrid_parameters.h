@@ -184,7 +184,8 @@ enum class PreconditionerSmoother
   None,
   PointJacobi,
   BlockJacobi,
-  AdditiveSchwarz
+  AdditiveSchwarz,
+  Inverse
 };
 
 std::string
