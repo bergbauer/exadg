@@ -59,7 +59,7 @@ template<int dim, typename Number>
 class MultigridPreconditionerBase : public PreconditionerBase<Number>
 {
 public:
-  typedef float MultigridNumber;
+  typedef double MultigridNumber;
 
 protected:
   typedef std::map<dealii::types::boundary_id, std::shared_ptr<dealii::Function<dim>>> Map_DBC;
@@ -281,6 +281,9 @@ private:
 
   void
   initialize_chebyshev_smoother_additive_schwarz(Operator & matrix, unsigned int level);
+
+  void
+  initialize_chebyshev_smoother_inverse(Operator & matrix, unsigned int level);
 
   /*
    * Coarse grid solver.

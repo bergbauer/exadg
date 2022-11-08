@@ -32,8 +32,9 @@ template<typename Operator>
 class InversePreconditioner : public PreconditionerBase<typename Operator::value_type>
 {
 public:
-  typedef typename PreconditionerBase<typename Operator::value_type>::VectorType VectorType;
-  typedef typename PreconditionerBase<dealii::TrilinosScalar>::VectorType        VectorTypeDouble;
+  typedef typename Operator::value_type                                   Number;
+  typedef typename PreconditionerBase<Number>::VectorType                 VectorType;
+  typedef typename PreconditionerBase<dealii::TrilinosScalar>::VectorType VectorTypeDouble;
 
   // distributed sparse system matrix
   dealii::TrilinosWrappers::SparseMatrix system_matrix;
@@ -41,7 +42,8 @@ public:
   InversePreconditioner(Operator const & underlying_operator_in)
     : underlying_operator(underlying_operator_in)
   {
-    underlying_operator.init_system_matrix(system_matrix, underlying_operator.get_matrix_free().get_dof_handler().get_communicator());
+    underlying_operator.init_system_matrix(
+      system_matrix, underlying_operator.get_matrix_free().get_dof_handler().get_communicator());
     underlying_operator.calculate_system_matrix(system_matrix);
   }
 
@@ -60,16 +62,54 @@ public:
     src_double.reinit(src, true);
     src_double = src;
 
-    dealii::FullMatrix<double> full_matrix(system_matrix.m());
+    dealii::LAPACKFullMatrix<double>       full_matrix(system_matrix.m());
+    dealii::TrilinosWrappers::SparseMatrix inverse_matrix(system_matrix.m(),
+                                                          system_matrix.m(),
+                                                          system_matrix.m());
 
     full_matrix.copy_from(system_matrix);
-    full_matrix.invert(full_matrix);
 
-    dealii::TrilinosWrappers::SparseMatrix inverse_matrix(system_matrix.m(), system_matrix.m(), system_matrix.m());
+#if 1
+    full_matrix.compute_svd();
+
+    for(unsigned int i = 0; i < system_matrix.m(); ++i)
+      std::cout << full_matrix.singular_value(i) << " ";
+    std::cout << std::endl;
+
+    const double threshold = std::numeric_limits<Number>::epsilon() * 1e3;
+    full_matrix.compute_inverse_svd(threshold);
+
+    const auto eigenvectors = full_matrix.get_svd_u();
+
+    dealii::FullMatrix<double> inverse_by_svd(full_matrix.m());
+    inverse_by_svd = 0;
+    dealii::FullMatrix<double> projector(full_matrix.m());
+
+    dealii::Vector<double> eigenvector(full_matrix.m());
+    for(unsigned int k = 0; k < full_matrix.m(); ++k)
+    {
+      for(unsigned int i = 0; i < full_matrix.m(); ++i)
+        eigenvector(i) = eigenvectors(i, k);
+
+      eigenvector /= eigenvector.l2_norm();
+
+      for(unsigned int i = 0; i < full_matrix.m(); ++i)
+        for(unsigned int j = 0; j < full_matrix.m(); ++j)
+          projector.set(i, j, eigenvector(i) * eigenvector(j));
+
+      inverse_by_svd.add(full_matrix.singular_value(k), projector);
+    }
+
+    for(unsigned int i = 0; i < system_matrix.m(); ++i)
+      for(unsigned int j = 0; j < system_matrix.m(); ++j)
+        inverse_matrix.set(i, j, inverse_by_svd(i, j));
+#else
+    full_matrix.invert();
 
     for(unsigned int i = 0; i < system_matrix.m(); ++i)
       for(unsigned int j = 0; j < system_matrix.m(); ++j)
         inverse_matrix.set(i, j, full_matrix(i, j));
+#endif
 
     inverse_matrix.compress(dealii::VectorOperation::insert);
 

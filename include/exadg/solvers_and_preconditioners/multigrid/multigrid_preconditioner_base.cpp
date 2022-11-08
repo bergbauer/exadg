@@ -46,6 +46,7 @@
 #include <exadg/solvers_and_preconditioners/multigrid/transfers/mg_transfer_global_coarsening.h>
 #include <exadg/solvers_and_preconditioners/multigrid/transfers/mg_transfer_global_refinement.h>
 #include <exadg/solvers_and_preconditioners/preconditioners/additive_schwarz_preconditioner.h>
+#include <exadg/solvers_and_preconditioners/preconditioners/inverse_preconditioner.h>
 #include <exadg/solvers_and_preconditioners/utilities/compute_eigenvalues.h>
 #include <exadg/utilities/mpi.h>
 
@@ -770,6 +771,12 @@ MultigridPreconditionerBase<dim, Number>::initialize_smoother(Operator &   mg_op
           ChebyshevSmoother<Operator, VectorTypeMG, AdditiveSchwarzPreconditioner<Operator>>>();
         initialize_chebyshev_smoother_additive_schwarz(mg_operator, level);
       }
+      else if(data.smoother_data.preconditioner == PreconditionerSmoother::Inverse)
+      {
+        smoothers[level] = std::make_shared<
+          ChebyshevSmoother<Operator, VectorTypeMG, InversePreconditioner<Operator>>>();
+        initialize_chebyshev_smoother_inverse(mg_operator, level);
+      }
       else
         AssertThrow(false, dealii::ExcNotImplemented());
       break;
@@ -860,6 +867,12 @@ MultigridPreconditionerBase<dim, Number>::update_smoother(unsigned int level)
       {
         smoothers[level] = std::make_shared<
           ChebyshevSmoother<Operator, VectorTypeMG, AdditiveSchwarzPreconditioner<Operator>>>();
+        initialize_chebyshev_smoother_additive_schwarz(*operators[level], level);
+      }
+      else if(data.smoother_data.preconditioner == PreconditionerSmoother::Inverse)
+      {
+        smoothers[level] = std::make_shared<
+          ChebyshevSmoother<Operator, VectorTypeMG, InversePreconditioner<Operator>>>();
         initialize_chebyshev_smoother_additive_schwarz(*operators[level], level);
       }
       else
@@ -1126,6 +1139,30 @@ MultigridPreconditionerBase<dim, Number>::initialize_chebyshev_smoother_additive
 
   smoother_data.preconditioner =
     std::make_shared<AdditiveSchwarzPreconditioner<Operator>>(mg_operator);
+
+  smoother_data.smoothing_range     = data.smoother_data.smoothing_range;
+  smoother_data.degree              = data.smoother_data.iterations;
+  smoother_data.eig_cg_n_iterations = data.smoother_data.iterations_eigenvalue_estimation;
+
+  std::shared_ptr<Chebyshev> smoother = std::dynamic_pointer_cast<Chebyshev>(smoothers[level]);
+  smoother->initialize(mg_operator, smoother_data);
+}
+
+template<int dim, typename Number>
+void
+MultigridPreconditionerBase<dim, Number>::initialize_chebyshev_smoother_inverse(
+  Operator &   mg_operator,
+  unsigned int level)
+{
+  AssertThrow(data.smoother_data.preconditioner == PreconditionerSmoother::Inverse,
+              dealii::ExcNotImplemented());
+
+  typedef ChebyshevSmoother<Operator, VectorTypeMG, InversePreconditioner<Operator>>
+                                     Chebyshev;
+  typename Chebyshev::AdditionalData smoother_data;
+
+  smoother_data.preconditioner =
+    std::make_shared<InversePreconditioner<Operator>>(mg_operator);
 
   smoother_data.smoothing_range     = data.smoother_data.smoothing_range;
   smoother_data.degree              = data.smoother_data.iterations;
