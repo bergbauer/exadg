@@ -135,6 +135,12 @@ public:
   }
 
   virtual void
+  apply_inverse_as_blocks(VectorType & dst, VectorType const & src) const
+  {
+    pde_operator->apply_inverse_as_blocks(dst, src);
+  }
+
+  virtual void
   assemble_as_matrix(dealii::TrilinosWrappers::SparseMatrix & as_matrix) const
   {
     pde_operator->assemble_as_matrix(as_matrix);

@@ -88,6 +88,9 @@ public:
   apply_inverse_block_diagonal(VectorType & dst, VectorType const & src) const = 0;
 
   virtual void
+  apply_inverse_as_blocks(VectorType & dst, VectorType const & src) const = 0;
+
+  virtual void
   assemble_as_matrix(dealii::TrilinosWrappers::SparseMatrix & as_matrix) const = 0;
 
 #ifdef DEAL_II_WITH_TRILINOS

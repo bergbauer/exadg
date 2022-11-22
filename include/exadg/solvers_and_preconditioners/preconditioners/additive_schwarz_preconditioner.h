@@ -67,7 +67,8 @@ public:
   void
   vmult(VectorType & dst, VectorType const & src) const
   {
-    underlying_operator.apply_inverse_block_diagonal(dst, src);
+    dst.reinit(src, false);
+    underlying_operator.apply_inverse_as_blocks(dst, src);
 
     const bool check_vmult = false;
 
