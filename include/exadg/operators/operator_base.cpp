@@ -538,27 +538,110 @@ OperatorBase<dim, Number, n_components>::apply_inverse_block_diagonal(VectorType
     apply_block_diagonal_matrix_based(dst, src);
   }
 
-//  dealii::Vector<double> vector_src, vector_dst;
-//
-//  dealii::DoFHandler<dim> const & dof_handler =
-//    this->matrix_free->get_dof_handler(this->data.dof_index);
-//
-//  for (const auto &cell : dof_handler.active_cell_iterators())
-//  {
-//    if (cell->is_locally_owned() == false)
-//      continue;
-//
-//    const unsigned int dofs_per_cell = cell->get_fe().n_dofs_per_cell();
-//
-//    vector_src.reinit(dofs_per_cell);
-//    vector_dst.reinit(dofs_per_cell);
-//
-//    cell->get_dof_values(src, vector_src);
-//
-//    matrices[cell->active_cell_index()].vmult(vector_dst, vector_src);
-//
-//    cell->distribute_local_to_global(vector_dst, dst);
-//  }
+  //  dealii::Vector<double> vector_src, vector_dst;
+  //
+  //  dealii::DoFHandler<dim> const & dof_handler =
+  //    this->matrix_free->get_dof_handler(this->data.dof_index);
+  //
+  //  for (const auto &cell : dof_handler.active_cell_iterators())
+  //  {
+  //    if (cell->is_locally_owned() == false)
+  //      continue;
+  //
+  //    const unsigned int dofs_per_cell = cell->get_fe().n_dofs_per_cell();
+  //
+  //    vector_src.reinit(dofs_per_cell);
+  //    vector_dst.reinit(dofs_per_cell);
+  //
+  //    cell->get_dof_values(src, vector_src);
+  //
+  //    matrices[cell->active_cell_index()].vmult(vector_dst, vector_src);
+  //
+  //    cell->distribute_local_to_global(vector_dst, dst);
+  //  }
+}
+
+template<int dim, typename Number, int n_components>
+void
+OperatorBase<dim, Number, n_components>::apply_inverse_as_blocks(VectorType &       dst,
+                                                                 VectorType const & src) const
+{
+  const bool is_weighting = true;
+
+  src.update_ghost_values();
+
+  auto read_dof_values = [&](dealii::Vector<Number> &                             local_vector,
+                             const std::vector<dealii::types::global_dof_index> & dof_indices) {
+    local_vector.reinit(dof_indices.size());
+
+    for(unsigned int i = 0; i < local_vector.size(); ++i)
+    {
+      if(is_weighting)
+      {
+        const auto weight = 1.;
+
+        local_vector[i] = src[dof_indices[i]] * weight;
+      }
+      else
+      {
+        local_vector[i] = src[dof_indices[i]];
+      }
+    }
+  };
+
+  auto distribute_dof_values =
+    [&](const dealii::Vector<Number> &                       local_vector,
+        const std::vector<dealii::types::global_dof_index> & dof_indices) {
+      AssertDimension(local_vector.size(), dof_indices.size());
+
+      for(unsigned int i = 0; i < local_vector.size(); ++i)
+      {
+        if(is_weighting)
+        {
+          const auto weight = 1.;
+
+          dst[dof_indices[i]] += local_vector[i] * weight;
+        }
+        else
+        {
+          dst[dof_indices[i]] += local_vector[i];
+        }
+      }
+    };
+
+  for(unsigned int cell_batch_index = 0; cell_batch_index < matrix_free->n_cell_batches();
+      ++cell_batch_index)
+  {
+    const unsigned int n_filled_lanes =
+      matrix_free->n_active_entries_per_cell_batch(cell_batch_index);
+
+    for(unsigned int v = 0; v < n_filled_lanes; ++v)
+    {
+      const auto & cell = matrix_free->get_cell_iterator(cell_batch_index, v);
+
+      if(not(cell->is_locally_owned()))
+        continue;
+
+      std::vector<dealii::types::global_dof_index> dof_indices(matrix_free->get_dofs_per_cell());
+      if(is_mg)
+        cell->get_mg_dof_indices(dof_indices);
+      else
+        cell->get_dof_indices(dof_indices);
+
+      const auto & cell_batch_matrix = matrices[cell_batch_index * vectorization_length + v];
+
+      dealii::Vector<Number> local_vector_src, local_vector_dst;
+      read_dof_values(local_vector_src, dof_indices);
+      local_vector_dst.reinit(local_vector_src.size());
+
+      cell_batch_matrix.solve(local_vector_src);
+      local_vector_dst = local_vector_src;
+
+      distribute_dof_values(local_vector_dst, dof_indices);
+    }
+  }
+
+  dst.compress(dealii::VectorOperation::add);
 }
 
 template<int dim, typename Number, int n_components>
@@ -728,7 +811,8 @@ OperatorBase<dim, Number, n_components>::init_system_matrix(
   dealii::TrilinosWrappers::SparseMatrix & system_matrix,
   MPI_Comm const &                         mpi_comm) const
 {
-  internal_init_system_matrix(system_matrix, mpi_comm);
+  dealii::DynamicSparsityPattern dsp;
+  internal_init_system_matrix(system_matrix, dsp, mpi_comm);
 }
 
 template<int dim, typename Number, int n_components>
@@ -747,7 +831,8 @@ OperatorBase<dim, Number, n_components>::init_system_matrix(
   dealii::PETScWrappers::MPI::SparseMatrix & system_matrix,
   MPI_Comm const &                           mpi_comm) const
 {
-  internal_init_system_matrix(system_matrix, mpi_comm);
+  dealii::DynamicSparsityPattern dsp;
+  internal_init_system_matrix(system_matrix, dsp, mpi_comm);
 }
 
 template<int dim, typename Number, int n_components>
@@ -763,8 +848,9 @@ template<int dim, typename Number, int n_components>
 template<typename SparseMatrix>
 void
 OperatorBase<dim, Number, n_components>::internal_init_system_matrix(
-  SparseMatrix &   system_matrix,
-  MPI_Comm const & mpi_comm) const
+  SparseMatrix &                   system_matrix,
+  dealii::DynamicSparsityPattern & dsp,
+  MPI_Comm const &                 mpi_comm) const
 {
   dealii::DoFHandler<dim> const & dof_handler =
     this->matrix_free->get_dof_handler(this->data.dof_index);
@@ -791,7 +877,7 @@ OperatorBase<dim, Number, n_components>::internal_init_system_matrix(
     dealii::DoFTools::extract_locally_relevant_level_dofs(dof_handler, level, relevant_dofs);
   else
     dealii::DoFTools::extract_locally_relevant_dofs(dof_handler, relevant_dofs);
-  dealii::DynamicSparsityPattern dsp(relevant_dofs);
+  dsp.reinit(relevant_dofs.size(), relevant_dofs.size(), relevant_dofs);
 
   if(is_dg and is_mg)
     dealii::MGTools::make_flux_sparsity_pattern(dof_handler, dsp, this->level);
@@ -2008,63 +2094,24 @@ template<typename SparseMatrix>
 void
 OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatrix & as_matrix) const
 {
-  std::vector<std::vector<std::pair<unsigned int, unsigned int>>> cell_index_neighbors;
-
-  // create sparsity pattern
-  const auto dofs =
-    matrix_free->get_shape_info(this->data.dof_index).dofs_per_component_on_cell * n_components;
-
-  SparseMatrix tmp_matrix;
-
   dealii::DoFHandler<dim> const & dof_handler =
     this->matrix_free->get_dof_handler(this->data.dof_index);
 
-  dealii::IndexSet const & owned_dofs =
-    is_mg ? dof_handler.locally_owned_mg_dofs(this->level) : dof_handler.locally_owned_dofs();
+  const auto dofs =
+    matrix_free->get_shape_info(this->data.dof_index).dofs_per_component_on_cell * n_components;
 
-  // check for a valid subcommunicator by asserting that the sum of the dofs
-  // owned by all participating processes is equal to the sum of global dofs -
-  // the second check is needed on the MPI processes not participating in the
-  // actual communication, i.e., which are left out from sub-communication
-  dealii::types::global_dof_index const sum_of_locally_owned_dofs =
-    dealii::Utilities::MPI::sum(owned_dofs.n_elements(), dof_handler.get_communicator());
-  bool const my_rank_is_part_of_subcommunicator = sum_of_locally_owned_dofs == owned_dofs.size();
-  AssertThrow(my_rank_is_part_of_subcommunicator || owned_dofs.n_elements() == 0,
-              dealii::ExcMessage(
-                "The given communicator mpi_comm in init_system_matrix does not span "
-                "all MPI processes needed to cover the index space of all dofs: " +
-                std::to_string(sum_of_locally_owned_dofs) + " vs " +
-                std::to_string(owned_dofs.size())));
+  // assemble a temporary sparse matrix to cut out the blocks
+  SparseMatrix tmp_matrix;
 
-  dealii::IndexSet relevant_dofs;
-  if(is_mg)
-    dealii::DoFTools::extract_locally_relevant_level_dofs(dof_handler, level, relevant_dofs);
-  else
-    dealii::DoFTools::extract_locally_relevant_dofs(dof_handler, relevant_dofs);
-  dealii::DynamicSparsityPattern dsp(relevant_dofs);
+  dealii::DynamicSparsityPattern dsp;
 
-  if(is_dg && is_mg)
-    dealii::MGTools::make_flux_sparsity_pattern(dof_handler, dsp, this->level);
-  else if(is_dg && !is_mg)
-    dealii::DoFTools::make_flux_sparsity_pattern(dof_handler, dsp);
-  else if(/*!is_dg &&*/ is_mg)
-    dealii::MGTools::make_sparsity_pattern<dim, dim, dealii::DynamicSparsityPattern, Number>(
-      dof_handler, dsp, this->level, *this->constraint);
-  else /* if (!is_dg && !is_mg)*/
-    dealii::DoFTools::make_sparsity_pattern(dof_handler, dsp, *this->constraint);
+  internal_init_system_matrix(tmp_matrix, dsp, dof_handler.get_communicator());
+  internal_init_system_matrix(as_matrix, dsp, dof_handler.get_communicator());
 
-  if(my_rank_is_part_of_subcommunicator)
-  {
-    dealii::SparsityTools::distribute_sparsity_pattern(dsp,
-                                                       owned_dofs,
-                                                       dof_handler.get_communicator(),
-                                                       relevant_dofs);
-    as_matrix.reinit(owned_dofs, owned_dofs, dsp, dof_handler.get_communicator());
-  }
+  internal_calculate_system_matrix(tmp_matrix);
 
-  tmp_matrix.reinit(as_matrix);
-
-  // assemble sparse matrix
+  // assemble cell_index_neighbors
+  std::vector<std::vector<std::pair<unsigned int, unsigned int>>> cell_index_neighbors;
   cell_index_neighbors.resize(dof_handler.n_dofs());
   for(unsigned int cell_batch_index = 0; cell_batch_index < matrix_free->n_cell_batches();
       ++cell_batch_index)
@@ -2076,17 +2123,6 @@ OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatri
     {
       const auto & cell = matrix_free->get_cell_iterator(cell_batch_index, v);
 
-      auto & cell_matrix = matrices[cell_batch_index * vectorization_length + v];
-
-      dealii::FullMatrix<dealii::TrilinosScalar> matrix(dofs, dofs);
-      matrix = cell_matrix;
-
-#if 0
-      std::cout << "cell block" << std::endl;
-      matrix.print_formatted(std::cout);
-      std::cout << std::endl;
-#endif
-
       std::vector<dealii::types::global_dof_index> dof_indices(matrix_free->get_dofs_per_cell());
       if(is_mg)
         cell->get_mg_dof_indices(dof_indices);
@@ -2096,32 +2132,12 @@ OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatri
       for(unsigned int i = 0; i < dof_indices.size(); ++i)
         cell_index_neighbors[dof_indices[i]].push_back(
           std::pair<unsigned int, unsigned int>(cell->active_cell_index(), i));
-
-      if(!is_dg)
-      {
-        // in the case of CG: shape functions are not ordered
-        // lexicographically see
-        // (https://www.dealii.org/8.5.1/doxygen/deal.II/classFE__Q.html)
-        // so we have to fix the order
-        auto temp = dof_indices;
-        for(unsigned int j = 0; j < dof_indices.size(); j++)
-          dof_indices[j] = temp[matrix_free->get_shape_info().lexicographic_numbering[j]];
-      }
-
-      // choose the version of distribute_local_to_global with a single
-      // `dof_indices` argument to indicate that we write to a diagonal
-      // block of the matrix (vs 2 for off-diagonal ones); this implies a
-      // non-zero entry is added to the diagonal of constrained matrix
-      // rows, ensuring positive definiteness
-      constraint_double.distribute_local_to_global(matrix, dof_indices, tmp_matrix);
     }
   }
 
-  tmp_matrix.compress(dealii::VectorOperation::add);
-
   // cut out overlapped block matrices
-  std::vector<CellMatrix> overlapped_block_matrix(dof_handler.get_triangulation().n_active_cells(),
-                                                  CellMatrix(dofs, dofs));
+  std::vector<dealii::FullMatrix<Number>> overlapped_block_matrix(
+    dof_handler.get_triangulation().n_active_cells(), dealii::FullMatrix<Number>(dofs, dofs));
 
   std::vector<std::vector<dealii::types::global_dof_index>> all_dof_indices;
   all_dof_indices.resize(dof_handler.get_triangulation().n_active_cells());
@@ -2133,7 +2149,10 @@ OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatri
 
     auto & local_dof_indices = all_dof_indices[cell->active_cell_index()];
     local_dof_indices.resize(cell->get_fe().n_dofs_per_cell());
-    cell->get_dof_indices(local_dof_indices);
+    if(is_mg)
+      cell->get_mg_dof_indices(local_dof_indices);
+    else
+      cell->get_dof_indices(local_dof_indices);
   }
 
   dealii::SparseMatrixTools::restrict_to_full_matrices<SparseMatrix,
@@ -2160,52 +2179,27 @@ OperatorBase<dim, Number, n_components>::internal_assemble_as_matrix(SparseMatri
       else
         cell->get_dof_indices(dof_indices);
 
-      // get reference to cell matrix in global block matrix
-      auto & cell_matrix = matrices[cell_batch_index * vectorization_length + v];
-
       // get overlapped cell matrix
       const auto & overlapped_cell_matrix = overlapped_block_matrix[cell->active_cell_index()];
 
-      // save cell matrix in global block matrix
-      cell_matrix = overlapped_cell_matrix;
+      // factorize the cell matrix
+      dealii::LAPACKFullMatrix<Number> lapack_matrix(overlapped_cell_matrix.m());
+      lapack_matrix = overlapped_cell_matrix;
+      lapack_matrix.set_property(dealii::LAPACKSupport::symmetric);
+      lapack_matrix.compute_cholesky_factorization();
 
-      // invert overlapped cell matrix
-      cell_matrix.invert(cell_matrix);
-
-      // scale inverse matrix symmetrically
-      for(unsigned int i = 0; i < dof_indices.size(); ++i)
-        for(unsigned int j = 0; j < dof_indices.size(); ++j)
-        {
-          const unsigned int n_overlapped_indices_i = cell_index_neighbors[dof_indices[i]].size();
-          const unsigned int n_overlapped_indices_j = cell_index_neighbors[dof_indices[j]].size();
-
-          const double weight_i = 1. / std::sqrt(n_overlapped_indices_i);
-          const double weight_j = 1. / std::sqrt(n_overlapped_indices_j);
-
-          cell_matrix(i, j) = cell_matrix(i, j) * weight_i * weight_j;
-        }
+      matrices[cell_batch_index * vectorization_length + v] = lapack_matrix;
 
       // save inverted matrix in double precision to assemble it
       dealii::FullMatrix<dealii::TrilinosScalar> inverse_matrix(dofs, dofs);
-      inverse_matrix = cell_matrix;
-
-      // reorder cell_matrix to matrix free numbering
-      if(!is_dg)
-      {
-        CellMatrix temp = cell_matrix;
-
-        const auto & lexicographic_numbering =
-          matrix_free->get_shape_info().lexicographic_numbering;
-
-        for(unsigned int i = 0; i < dof_indices.size(); i++)
-          for(unsigned int j = 0; j < dof_indices.size(); j++)
-            cell_matrix(i, j) = temp(lexicographic_numbering[i], lexicographic_numbering[j]);
-      }
+      inverse_matrix = overlapped_cell_matrix;
+      inverse_matrix.invert(inverse_matrix);
 
       // assemble into global additive Schwarz preconditioner matrix
       cell->distribute_local_to_global(inverse_matrix, as_matrix);
     }
   }
+  as_matrix.compress(dealii::VectorOperation::add);
 }
 
 

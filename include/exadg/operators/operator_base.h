@@ -98,8 +98,8 @@ public:
 
   static unsigned int const vectorization_length = dealii::VectorizedArray<Number>::size();
 
-  typedef dealii::FullMatrix<Number> CellMatrix;
-  typedef std::vector<CellMatrix>    BlockMatrix;
+  typedef dealii::LAPACKFullMatrix<Number> CellMatrix;
+  typedef std::vector<CellMatrix>          BlockMatrix;
 
   typedef dealii::FullMatrix<dealii::TrilinosScalar> FullMatrix_;
 
@@ -186,6 +186,9 @@ public:
 
   virtual void
   apply_inverse_block_diagonal(VectorType & dst, VectorType const & src) const;
+
+  virtual void
+  apply_inverse_as_blocks(VectorType & dst, VectorType const & src) const;
 
   /*
    * Algebraic multigrid (AMG): sparse matrix (Trilinos) methods
@@ -581,7 +584,9 @@ private:
    */
   template<typename SparseMatrix>
   void
-  internal_init_system_matrix(SparseMatrix & system_matrix, MPI_Comm const & mpi_comm) const;
+  internal_init_system_matrix(SparseMatrix &                   system_matrix,
+                              dealii::DynamicSparsityPattern & dsp,
+                              MPI_Comm const &                 mpi_comm) const;
 
   template<typename SparseMatrix>
   void
