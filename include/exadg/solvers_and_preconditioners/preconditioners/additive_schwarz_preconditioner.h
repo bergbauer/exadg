@@ -41,9 +41,6 @@ public:
   AdditiveSchwarzPreconditioner(Operator const & underlying_operator_in)
     : underlying_operator(underlying_operator_in)
   {
-    // initialize block Jacobi
-    underlying_operator.update_block_diagonal_preconditioner();
-    // underlying_operator.calculate_block_diagonal_preconditioner();
     underlying_operator.assemble_as_matrix(system_matrix);
   }
 
@@ -55,7 +52,6 @@ public:
   void
   update()
   {
-    underlying_operator.update_block_diagonal_preconditioner();
     underlying_operator.assemble_as_matrix(system_matrix);
   }
 
