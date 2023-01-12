@@ -1571,7 +1571,7 @@ OperatorBase<dim, Number, n_components>::cell_loop_apply_block_diagonal_matrix_b
         integrator->begin_dof_values()[j][v] = dst_vector(j);
     }
 
-    integrator->distribute_local_to_global_plain(dst);
+    integrator->distribute_local_to_global(dst);
   }
 }
 
