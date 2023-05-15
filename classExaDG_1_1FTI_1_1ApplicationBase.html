@@ -92,8 +92,8 @@ Inheritance diagram for ExaDG::FTI::ApplicationBase&lt; dim, Number &gt;:</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:af697203283f60cac4456b3846c20e579"><td class="memItemLeft" align="right" valign="top">virtual void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classExaDG_1_1FTI_1_1ApplicationBase.html#af697203283f60cac4456b3846c20e579">add_parameters</a> (dealii::ParameterHandler &amp;prm)</td></tr>
-<tr class="separator:af697203283f60cac4456b3846c20e579"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a79dc8980ac31e8bbf6bcfe29ad34b5c7"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classExaDG_1_1FTI_1_1ApplicationBase.html#a79dc8980ac31e8bbf6bcfe29ad34b5c7">add_parameters</a> (dealii::ParameterHandler &amp;prm) override</td></tr>
+<tr class="separator:a79dc8980ac31e8bbf6bcfe29ad34b5c7"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5f6890ef72aae79b75bdb3d78a2b5cf3"><td class="memItemLeft" align="right" valign="top"><a id="a5f6890ef72aae79b75bdb3d78a2b5cf3" name="a5f6890ef72aae79b75bdb3d78a2b5cf3"></a>
 &#160;</td><td class="memItemRight" valign="bottom"><b>ApplicationBase</b> (std::string parameter_file, MPI_Comm const &amp;comm, unsigned int n_scalar_fields)</td></tr>
 <tr class="separator:a5f6890ef72aae79b75bdb3d78a2b5cf3"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -206,6 +206,9 @@ std::shared_ptr&lt; <a class="el" href="structExaDG_1_1Poisson_1_1BoundaryDescri
 <tr class="memitem:aaba5b4a6d84456d2b3ff1127c491a8c1 inherit pro_attribs_classExaDG_1_1IncNS_1_1ApplicationBase"><td class="memItemLeft" align="right" valign="top"><a id="aaba5b4a6d84456d2b3ff1127c491a8c1" name="aaba5b4a6d84456d2b3ff1127c491a8c1"></a>
 std::string&#160;</td><td class="memItemRight" valign="bottom"><b>parameter_file</b></td></tr>
 <tr class="separator:aaba5b4a6d84456d2b3ff1127c491a8c1 inherit pro_attribs_classExaDG_1_1IncNS_1_1ApplicationBase"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a848ef71857814064a46e582dad2d89b3 inherit pro_attribs_classExaDG_1_1IncNS_1_1ApplicationBase"><td class="memItemLeft" align="right" valign="top"><a id="a848ef71857814064a46e582dad2d89b3" name="a848ef71857814064a46e582dad2d89b3"></a>
+unsigned int&#160;</td><td class="memItemRight" valign="bottom"><b>n_subdivisions_1d_hypercube</b></td></tr>
+<tr class="separator:a848ef71857814064a46e582dad2d89b3 inherit pro_attribs_classExaDG_1_1IncNS_1_1ApplicationBase"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a5be0e141691cc9df2de8212ee62ec1de inherit pro_attribs_classExaDG_1_1IncNS_1_1ApplicationBase"><td class="memItemLeft" align="right" valign="top"><a id="a5be0e141691cc9df2de8212ee62ec1de" name="a5be0e141691cc9df2de8212ee62ec1de"></a>
 <a class="el" href="structExaDG_1_1OutputParameters.html">OutputParameters</a>&#160;</td><td class="memItemRight" valign="bottom"><b>output_parameters</b></td></tr>
 <tr class="separator:a5be0e141691cc9df2de8212ee62ec1de inherit pro_attribs_classExaDG_1_1IncNS_1_1ApplicationBase"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -248,8 +251,8 @@ template&lt;int dim, typename Number &gt; </div>
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
-<a id="af697203283f60cac4456b3846c20e579" name="af697203283f60cac4456b3846c20e579"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#af697203283f60cac4456b3846c20e579">&#9670;&#160;</a></span>add_parameters()</h2>
+<a id="a79dc8980ac31e8bbf6bcfe29ad34b5c7" name="a79dc8980ac31e8bbf6bcfe29ad34b5c7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a79dc8980ac31e8bbf6bcfe29ad34b5c7">&#9670;&#160;</a></span>add_parameters()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -260,7 +263,7 @@ template&lt;int dim, typename Number &gt; </div>
   <td class="mlabels-left">
       <table class="memname">
         <tr>
-          <td class="memname">virtual void <a class="el" href="classExaDG_1_1FTI_1_1ApplicationBase.html">ExaDG::FTI::ApplicationBase</a>&lt; dim, Number &gt;::add_parameters </td>
+          <td class="memname">void <a class="el" href="classExaDG_1_1FTI_1_1ApplicationBase.html">ExaDG::FTI::ApplicationBase</a>&lt; dim, Number &gt;::add_parameters </td>
           <td>(</td>
           <td class="paramtype">dealii::ParameterHandler &amp;&#160;</td>
           <td class="paramname"><em>prm</em></td><td>)</td>
@@ -269,7 +272,7 @@ template&lt;int dim, typename Number &gt; </div>
       </table>
   </td>
   <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">virtual</span></span>  </td>
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">override</span><span class="mlabel">virtual</span></span>  </td>
   </tr>
 </table>
 </div><div class="memdoc">
