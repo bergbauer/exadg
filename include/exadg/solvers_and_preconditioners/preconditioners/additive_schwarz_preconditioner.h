@@ -50,7 +50,7 @@ public:
    *  when calling this function.
    */
   void
-  update()
+  update() final
   {
     underlying_operator.assemble_as_matrix(system_matrix);
   }
@@ -61,7 +61,7 @@ public:
    *  updated when calling this function.
    */
   void
-  vmult(VectorType & dst, VectorType const & src) const
+  vmult(VectorType & dst, VectorType const & src) const final
   {
     dst.reinit(src, false);
     underlying_operator.apply_inverse_as_blocks(dst, src);

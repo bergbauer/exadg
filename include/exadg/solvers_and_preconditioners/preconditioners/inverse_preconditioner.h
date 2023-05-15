@@ -48,13 +48,13 @@ public:
   }
 
   void
-  update()
+  update() final
   {
     underlying_operator.calculate_system_matrix(system_matrix);
   }
 
   void
-  vmult(VectorType & dst, VectorType const & src) const
+  vmult(VectorType & dst, VectorType const & src) const final
   {
     VectorTypeDouble dst_double;
     dst_double.reinit(dst, false);
