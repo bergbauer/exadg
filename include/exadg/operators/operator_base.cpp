@@ -641,6 +641,8 @@ OperatorBase<dim, Number, n_components>::apply_inverse_as_blocks(VectorType &   
     }
   }
 
+  src.zero_out_ghost_values();
+
   dst.compress(dealii::VectorOperation::add);
 }
 
