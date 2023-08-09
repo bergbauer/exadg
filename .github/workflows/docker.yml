@@ -4,6 +4,7 @@ on:
   push: 
     branches:
       - 'docker*'
+      - 'cut'
       - 'master'
 
 permissions:
@@ -34,4 +35,4 @@ jobs:
           cache-from: type=registry,ref=dealii/dealii:master-focal
           cache-to: type=inline
           push: true
-          tags: exadg/exadg:${{github.ref_name}}-focal
+          tags: bergbauer/exadg:${{github.ref_name}}-focal
