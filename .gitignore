@@ -6,3 +6,7 @@
 build/
 programs/
 *exadg_revision.h
+build-*/
+.idea/
+.vscode/
+solvers/

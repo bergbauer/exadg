@@ -22,6 +22,7 @@
 #ifndef PRECONDITIONER_AMG
 #define PRECONDITIONER_AMG
 
+#include <deal.II/base/timer.h>
 #include <deal.II/lac/la_parallel_vector.h>
 #include <deal.II/lac/petsc_precondition.h>
 #include <deal.II/lac/petsc_sparse_matrix.h>
@@ -32,6 +33,16 @@
 #include <exadg/solvers_and_preconditioners/preconditioners/preconditioner_base.h>
 #include <exadg/solvers_and_preconditioners/utilities/petsc_operation.h>
 #include <exadg/utilities/print_functions.h>
+#include <exadg/utilities/timer_tree.h>
+
+/*
+ * Activate timings if desired.
+ */
+#define ENABLE_TIMING true
+
+#ifndef ENABLE_TIMING
+#  define ENABLE_TIMING false
+#endif
 
 namespace ExaDG
 {
@@ -273,6 +284,8 @@ public:
     (void)pde_operator;
     (void)data;
 
+    timer_tree = std::make_shared<TimerTree>();
+
     if(data.amg_type == AMGType::BoomerAMG)
     {
 #ifdef DEAL_II_WITH_PETSC
@@ -300,17 +313,32 @@ public:
   void
   vmult(VectorType & dst, VectorType const & src) const final
   {
-    // create temporal vectors of type double
-    VectorTypeAMG dst_amg;
-    dst_amg.reinit(dst, false);
-    VectorTypeAMG src_amg;
-    src_amg.reinit(src, true);
-    src_amg = src;
+#if ENABLE_TIMING
+    dealii::Timer timer;
+#endif
 
-    preconditioner_amg->vmult(dst_amg, src_amg);
+    if constexpr(std::is_same<Number, NumberAMG>::value)
+    {
+      preconditioner_amg->vmult(dst, src);
+    }
+    else
+    {
+      // create temporal vectors of type double
+      VectorTypeAMG dst_amg;
+      dst_amg.reinit(dst, false);
+      VectorTypeAMG src_amg;
+      src_amg.reinit(src, true);
+      src_amg = src;
 
-    // convert: double -> Number
-    dst.copy_locally_owned_data_from(dst_amg);
+      preconditioner_amg->vmult(dst_amg, src_amg);
+
+      // convert: double -> Number
+      dst.copy_locally_owned_data_from(dst_amg);
+    }
+
+#if ENABLE_TIMING
+    timer_tree->insert({"AMG"}, timer.wall_time());
+#endif
   }
 
   void
@@ -319,8 +347,15 @@ public:
     preconditioner_amg->update();
   }
 
+  std::shared_ptr<TimerTree>
+  get_timings() const override
+  {
+    return timer_tree;
+  }
+
 private:
   std::shared_ptr<PreconditionerBase<NumberAMG>> preconditioner_amg;
+  std::shared_ptr<TimerTree>                     timer_tree;
 };
 
 } // namespace ExaDG
