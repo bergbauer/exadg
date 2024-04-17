@@ -108,15 +108,22 @@ public:
   PreconditionerML(Operator const & op, MLData ml_data = MLData())
     : pde_operator(op), ml_data(ml_data)
   {
-    // initialize system matrix
-    pde_operator.init_system_matrix(system_matrix,
-                                    op.get_matrix_free().get_dof_handler().get_communicator());
+    if constexpr(std::is_same<Operator, dealii::TrilinosWrappers::SparseMatrix>::value)
+    {
+      amg.initialize(pde_operator, ml_data);
+    }
+    else
+    {
+      // initialize system matrix
+      pde_operator.init_system_matrix(system_matrix,
+                                      op.get_matrix_free().get_dof_handler().get_communicator());
 
-    // calculate_matrix
-    pde_operator.calculate_system_matrix(system_matrix);
+      // calculate_matrix
+      pde_operator.calculate_system_matrix(system_matrix);
 
-    // initialize Trilinos' AMG
-    amg.initialize(system_matrix, ml_data);
+      // initialize Trilinos' AMG
+      amg.initialize(system_matrix, ml_data);
+    }
   }
 
   dealii::TrilinosWrappers::SparseMatrix const &
@@ -128,6 +135,12 @@ public:
   void
   update() override
   {
+    if constexpr(std::is_same<Operator, dealii::TrilinosWrappers::SparseMatrix>::value)
+    {
+      AssertThrow(false, dealii::ExcMessage("A matrix as Operator template does not know how to update itself."));
+    }
+    else
+    {
     // clear content of matrix since the next calculate_system_matrix-commands add their result
     system_matrix *= 0.0;
 
@@ -136,6 +149,7 @@ public:
 
     // initialize Trilinos' AMG
     amg.initialize(system_matrix, ml_data);
+    }
   }
 
   void
@@ -288,7 +302,7 @@ public:
 
     if(data.amg_type == AMGType::BoomerAMG)
     {
-#ifdef DEAL_II_WITH_PETSC
+#ifdef DEAL_II_WITH_PETSCCC
       preconditioner_amg =
         std::make_shared<PreconditionerBoomerAMG<Operator, double>>(pde_operator, data.boomer_data);
 #else

@@ -169,6 +169,7 @@ TimerTree::print_plain(dealii::ConditionalOStream const & pcout) const
   pcout << std::endl;
 
   do_print_plain(pcout, 0, length);
+  pcout << std::defaultfloat;
 }
 
 void
@@ -191,6 +192,7 @@ TimerTree::print_level(dealii::ConditionalOStream const & pcout, unsigned int co
           << "since the maximum level of the timer tree is max_level = " << max_level << "."
           << std::endl;
   }
+  pcout << std::defaultfloat;
 }
 
 unsigned int
@@ -345,7 +347,7 @@ TimerTree::print_own(dealii::ConditionalOStream const & pcout,
     }
   }
 
-  pcout << std::endl;
+  pcout << std::scientific << std::endl;
 }
 
 void
