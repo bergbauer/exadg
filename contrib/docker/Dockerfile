@@ -9,9 +9,9 @@ RUN  git clone https://github.com/bergbauer/exadg \
      && mkdir build \
      && cd build \
      && cmake ../ -DCMAKE_BUILD_TYPE="Release" \
-     && make -j2 \
+     && make -j4 \
      && cd .. \
      && mkdir build-debug \
      && cd build-debug \
      && cmake ../ -DCMAKE_BUILD_TYPE="Debug" \
-     && make -j2
+     && make -j4
