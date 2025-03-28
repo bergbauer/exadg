@@ -1,4 +1,4 @@
-FROM dealii/dealii:master-focal
+FROM dealii/dealii:master-noble
 
 ARG branch_name
 
