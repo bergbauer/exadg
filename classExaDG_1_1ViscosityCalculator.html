@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.13.2"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>ExaDG: Member List</title>
+<title>ExaDG: ExaDG::ViscosityCalculator&lt; dim, Number &gt; Class Template Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -83,22 +83,32 @@ $(function(){ initResizable(false); });
 
 <div id="nav-path" class="navpath">
   <ul>
-<li class="navelem"><a class="el" href="namespaceExaDG.html">ExaDG</a></li><li class="navelem"><a class="el" href="structExaDG_1_1InverseMassOperatorDataHdiv.html">InverseMassOperatorDataHdiv</a></li>  </ul>
+<li class="navelem"><a class="el" href="namespaceExaDG.html">ExaDG</a></li><li class="navelem"><a class="el" href="classExaDG_1_1ViscosityCalculator.html">ViscosityCalculator</a></li>  </ul>
 </div>
 </div><!-- top -->
 <div id="doc-content">
 <div class="header">
-  <div class="headertitle"><div class="title">ExaDG::InverseMassOperatorDataHdiv Member List</div></div>
+  <div class="summary">
+<a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="classExaDG_1_1ViscosityCalculator-members.html">List of all members</a>  </div>
+  <div class="headertitle"><div class="title">ExaDG::ViscosityCalculator&lt; dim, Number &gt; Class Template Reference</div></div>
 </div><!--header-->
 <div class="contents">
-
-<p>This is the complete list of members for <a class="el" href="structExaDG_1_1InverseMassOperatorDataHdiv.html">ExaDG::InverseMassOperatorDataHdiv</a>, including all inherited members.</p>
-<table class="directory">
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>dof_index</b> (defined in <a class="el" href="structExaDG_1_1InverseMassOperatorDataHdiv.html">ExaDG::InverseMassOperatorDataHdiv</a>)</td><td class="entry"><a class="el" href="structExaDG_1_1InverseMassOperatorDataHdiv.html">ExaDG::InverseMassOperatorDataHdiv</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>InverseMassOperatorDataHdiv</b>() (defined in <a class="el" href="structExaDG_1_1InverseMassOperatorDataHdiv.html">ExaDG::InverseMassOperatorDataHdiv</a>)</td><td class="entry"><a class="el" href="structExaDG_1_1InverseMassOperatorDataHdiv.html">ExaDG::InverseMassOperatorDataHdiv</a></td><td class="entry"><span class="mlabel">inline</span></td></tr>
-  <tr bgcolor="#f0f0f0" class="even"><td class="entry"><b>parameters</b> (defined in <a class="el" href="structExaDG_1_1InverseMassOperatorDataHdiv.html">ExaDG::InverseMassOperatorDataHdiv</a>)</td><td class="entry"><a class="el" href="structExaDG_1_1InverseMassOperatorDataHdiv.html">ExaDG::InverseMassOperatorDataHdiv</a></td><td class="entry"></td></tr>
-  <tr bgcolor="#f0f0f0" class="odd"><td class="entry"><b>quad_index</b> (defined in <a class="el" href="structExaDG_1_1InverseMassOperatorDataHdiv.html">ExaDG::InverseMassOperatorDataHdiv</a>)</td><td class="entry"><a class="el" href="structExaDG_1_1InverseMassOperatorDataHdiv.html">ExaDG::InverseMassOperatorDataHdiv</a></td><td class="entry"></td></tr>
-</table></div><!-- contents -->
+<table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
+Public Member Functions</h2></td></tr>
+<tr class="memitem:a0dba1a080a00d6c339a07206759718f5" id="r_a0dba1a080a00d6c339a07206759718f5"><td class="memItemLeft" align="right" valign="top"><a id="a0dba1a080a00d6c339a07206759718f5" name="a0dba1a080a00d6c339a07206759718f5"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>initialize</b> (dealii::MatrixFree&lt; dim, Number &gt; const &amp;matrix_free_in, unsigned int const dof_index_u_scalar_in, unsigned int const quad_index_in, <a class="el" href="classExaDG_1_1IncNS_1_1Operators_1_1ViscousKernel.html">IncNS::Operators::ViscousKernel</a>&lt; dim, Number &gt; const &amp;viscous_kernel_in)</td></tr>
+<tr class="separator:a0dba1a080a00d6c339a07206759718f5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a1fd0105a1bc59f25dc52986ddfbe65b2" id="r_a1fd0105a1bc59f25dc52986ddfbe65b2"><td class="memItemLeft" align="right" valign="top"><a id="a1fd0105a1bc59f25dc52986ddfbe65b2" name="a1fd0105a1bc59f25dc52986ddfbe65b2"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>access_viscosity</b> (VectorType &amp;dst, VectorType const &amp;src) const</td></tr>
+<tr class="separator:a1fd0105a1bc59f25dc52986ddfbe65b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table>
+<hr/>The documentation for this class was generated from the following files:<ul>
+<li>include/exadg/operators/<a class="el" href="navier__stokes__calculators_8h_source.html">navier_stokes_calculators.h</a></li>
+<li>include/exadg/operators/<b>navier_stokes_calculators.cpp</b></li>
+</ul>
+</div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>
 Generated by&#160;<a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.13.2
