@@ -185,21 +185,27 @@ create_sphere_grid(dealii::Triangulation<dim> & tria,
   grid_out.write_vtk(tria_ser, stream);
 
   // Shift two points somewhat to generate a better balance in points
-  //  for(auto const & cell : tria_ser.active_cell_iterators())
-  //  {
-  //    if(std::abs(cell->vertex(0)[0] - outer) < 1e-10 and std::abs(cell->vertex(0)[1]) < 1e-10 and
-  //       std::abs(cell->vertex(0)[2]) < 1e-10)
-  //      cell->vertex(0)[0] += 0.3 * (outer - radius_next);
-  //    else if(std::abs(cell->vertex(0)[0] - 0.5 * (outer + radius_next)) < 1e-10 and
-  //            std::abs(cell->vertex(0)[1]) < 1e-10 and std::abs(cell->vertex(0)[2]) < 1e-10)
-  //      cell->vertex(0)[0] += 0.15 * (outer - radius_next);
-  //    else if(std::abs(cell->vertex(1)[0] + outer) < 1e-10 and
-  //            std::abs(cell->vertex(1)[1]) < 1e-10 and std::abs(cell->vertex(1)[2]) < 1e-10)
-  //      cell->vertex(1)[0] -= 0.3 * (outer - radius_next);
-  //    else if(std::abs(cell->vertex(1)[0] + 0.5 * (outer + radius_next)) < 1e-10 and
-  //            std::abs(cell->vertex(1)[1]) < 1e-10 and std::abs(cell->vertex(1)[2]) < 1e-10)
-  //      cell->vertex(1)[0] -= 0.15 * (outer - radius_next);
-  //  }
+  for(auto const & cell : tria_ser.active_cell_iterators())
+  {
+    if(std::abs(cell->vertex(0)[0] - center_sphere[0] - outer) < 1e-10 and
+       std::abs(cell->vertex(0)[1] - center_sphere[1]) < 1e-10 and
+       std::abs(cell->vertex(0)[2] - center_sphere[2]) < 1e-10)
+      cell->vertex(0)[0] += 0.3 * (outer - radius_next);
+    else if(std::abs(cell->vertex(0)[0] - center_sphere[0] - 0.5 * (outer + radius_next)) <
+              1e-10 and
+            std::abs(cell->vertex(0)[1] - center_sphere[1]) < 1e-10 and
+            std::abs(cell->vertex(0)[2] - center_sphere[2]) < 1e-10)
+      cell->vertex(0)[0] += 0.15 * (outer - radius_next);
+    else if(std::abs(cell->vertex(1)[0] - center_sphere[0] + outer) < 1e-10 and
+            std::abs(cell->vertex(1)[1] - center_sphere[1]) < 1e-10 and
+            std::abs(cell->vertex(1)[2] - center_sphere[2]) < 1e-10)
+      cell->vertex(1)[0] -= 0.3 * (outer - radius_next);
+    else if(std::abs(cell->vertex(1)[0] - center_sphere[0] + 0.5 * (outer + radius_next)) <
+              1e-10 and
+            std::abs(cell->vertex(1)[1] - center_sphere[1]) < 1e-10 and
+            std::abs(cell->vertex(1)[2] - center_sphere[2]) < 1e-10)
+      cell->vertex(1)[0] -= 0.15 * (outer - radius_next);
+  }
 
   // Remove refinement to make sure all MPI ranks agree on this mesh
   dealii::Triangulation<dim> tria_inner;
