@@ -304,25 +304,22 @@ create_sphere_grid(dealii::Triangulation<dim> & tria,
 
   // Refine mesh adaptively once again in region around sphere and in the
   // immediate wake
-  //  for(auto const & cell : tria.active_cell_iterators())
-  //    if(cell->is_locally_owned())
-  //    {
-  //      dealii::Point<dim> center = cell->center();
-  //      if(center[0] > 0 and center[0] < 4.5 * outer)
-  //      {
-  //        // Check radius of 2.5 * radius for (y,z) coordinates
-  //        const double radius_factor = center[0] < 0 ? 2.3 : 2.8;
-  //        center[0]                  = 0;
-  //        if(center.norm() < radius_factor * radius)
-  //          cell->set_refine_flag();
-  //      }
-  //      else if(center.norm() < radius_next)
-  //        cell->set_refine_flag();
-  //    }
-  //  tria.execute_coarsening_and_refinement();
-
-
-  // dealii::GridTools::shift(center, tria);
+  for(auto const & cell : tria.active_cell_iterators())
+    if(cell->is_locally_owned())
+    {
+      dealii::Tensor<1, dim> center = cell->center() - center_sphere;
+      if(center[0] > 0 and center[0] < 4.5 * outer)
+      {
+        // Check radius of 2.5 * radius for (y,z) coordinates
+        const double radius_factor = center[0] < 0 ? 2.3 : 2.8;
+        center[0]                  = 0;
+        if(center.norm() < radius_factor * radius)
+          cell->set_refine_flag();
+      }
+      else if(center.norm() < radius_next)
+        cell->set_refine_flag();
+    }
+  tria.execute_coarsening_and_refinement();
 }
 
 
