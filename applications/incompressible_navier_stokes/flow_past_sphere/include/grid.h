@@ -29,9 +29,12 @@ namespace ExaDG
 namespace FlowPastSphere
 {
 double const       radius        = 0.05;
-double const       radius_next   = 2. * radius;
-double const       outer         = 4. * radius;
-unsigned int const length_factor = 5;
+double const       radius_next   = 1.5 * radius;
+double const       outer         = 2. * radius;
+unsigned int const length_factor = 9;
+double const       length        = 2 * outer + 2 * outer + 2 * length_factor * outer;
+double const       width         = 4 * outer;
+double const       height        = 4 * outer;
 
 template<int dim, int spacedim = dim>
 class SphericalManifoldBoundaryLayer : public dealii::Manifold<dim, spacedim>
@@ -116,7 +119,7 @@ private:
   }
 
   dealii::SphericalManifold<spacedim> const spherical;
-  dealii::Point<dim>                        center;
+  dealii::Point<dim> const                  center;
   double const                              radius;
   double const                              radius_next;
   double const                              stretch_factor;
@@ -128,18 +131,14 @@ template<int dim>
 void
 create_sphere_grid(dealii::Triangulation<dim> & tria,
                    unsigned int const           n_refinements,
-                   TriangulationType const &    triangulation_type)
+                   TriangulationType const &    triangulation_type,
+                   const dealii::Point<dim> & center_sphere)
 {
   AssertThrow(
     triangulation_type != TriangulationType::FullyDistributed,
     dealii::ExcMessage(
       "Manifolds might not be applied correctly for TriangulationType::FullyDistributed. "
       "Try to use another triangulation type, or try to fix these limitations in ExaDG or deal.II."));
-
-  dealii::Point<dim> center_sphere;
-  center_sphere[0] = 0.5;
-  center_sphere[1] = 0.2;
-  center_sphere[2] = 0.2;
 
   // Create inner mesh
   dealii::Triangulation<dim> tria1, tria2, tria3, tria4, tria_ser;
@@ -159,10 +158,10 @@ create_sphere_grid(dealii::Triangulation<dim> & tria,
   dealii::GridGenerator::subdivided_hyper_rectangle(
     tria3, {length_factor, 1, 1}, lower_left, upper_right, false);
   // inflow before sphere
-  lower_left[0]  = center_sphere[0] - 3 * outer;
+  lower_left[0]  = center_sphere[0] - 5 * outer;
   upper_right[0] = center_sphere[0] - outer;
   dealii::GridGenerator::subdivided_hyper_rectangle(
-    tria4, {1, 1, 1}, lower_left, upper_right, false);
+    tria4, {2, 1, 1}, lower_left, upper_right, false);
 
   dealii::GridGenerator::merge_triangulations({&tria1, &tria2, &tria3, &tria4}, tria_ser);
 
@@ -219,7 +218,7 @@ create_sphere_grid(dealii::Triangulation<dim> & tria,
   upper_right[0] = center_sphere[0] + (1 + 2 * length_factor) * outer;
   dealii::Triangulation<dim> tria_rectangle;
   std::vector<unsigned int>  refinements(dim, 4);
-  refinements[0] = 2 * length_factor + 4;
+  refinements[0] = 2 * length_factor + 6;
   dealii::GridGenerator::subdivided_hyper_rectangle(tria_rectangle,
                                                     refinements,
                                                     lower_left,
@@ -237,7 +236,14 @@ create_sphere_grid(dealii::Triangulation<dim> & tria,
                                                                  cells_to_remove,
                                                                  tria_outer);
 
-  dealii::GridGenerator::merge_triangulations({&tria_inner, &tria_outer}, tria);
+  dealii::Triangulation<dim> tria_back;
+  lower_left[0]  = center_sphere[0] + (1 + 2 * length_factor) * outer;
+  upper_right[0] = center_sphere[0] + (2 + 2 * length_factor) * outer;
+  dealii::GridGenerator::subdivided_hyper_rectangle(tria_back, {1, 4, 4}, lower_left, upper_right);
+
+  dealii::GridGenerator::merge_triangulations({&tria_inner, &tria_outer, &tria_back}, tria);
+
+  const double x_coordinate_outflow = upper_right[0];
 
   // Set manifold ids again on the final triangulation
   tria.reset_all_manifolds();
@@ -269,7 +275,7 @@ create_sphere_grid(dealii::Triangulation<dim> & tria,
         if(std::abs((cell->face(f)->vertex(0) - center_sphere).norm() - radius) < 1e-10)
           cell->face(f)->set_boundary_id(3);
         // inflow -> id 1
-        else if(std::abs((cell->face(f)->center()[0] - center_sphere[0]) + 3. * outer) < 1e-10)
+        else if(std::abs((cell->face(f)->center()[0] - center_sphere[0]) + 5. * outer) < 1e-10)
           cell->face(f)->set_boundary_id(1);
         // symmetry -> id 0
         else if(2. * outer - std::abs((cell->face(f)->center()[1] - center_sphere[1])) < 1e-10 or
@@ -279,12 +285,24 @@ create_sphere_grid(dealii::Triangulation<dim> & tria,
         // outflow -> id 2
         else
         {
-          AssertThrow(std::abs(cell->face(f)->center()[0] - center_sphere[0] -
-                               (1 + 2 * length_factor) * outer) < 1e-10,
+          AssertThrow(std::abs(cell->face(f)->center()[0] - x_coordinate_outflow) < 1e-10,
                       dealii::ExcInternalError());
           cell->face(f)->set_boundary_id(2);
         }
       }
+
+  // Shift boundary vertices to create asymmetry
+  for(auto const & cell : tria.active_cell_iterators())
+  {
+    if(cell->at_boundary())
+      for(const auto i : cell->vertex_indices())
+      {
+        if(std::abs(cell->vertex(i)[1] - 4 * outer) < 1e-10)
+          cell->vertex(i)[1] = 0.41;
+        if(std::abs(cell->vertex(i)[2] - 4 * outer) < 1e-10)
+          cell->vertex(i)[2] = 0.41;
+      }
+  }
 
   if(n_refinements > 0)
   {

@@ -42,7 +42,7 @@ public:
   value(dealii::Point<dim> const &, unsigned int const component = 0) const final
   {
     if(component == 0)
-      return 1.0;
+      return 3.0;
     else
       return 0.0;
   }
@@ -94,6 +94,8 @@ public:
   double const ABS_TOL_LINEAR = 1.e-12;
   double const REL_TOL_LINEAR = 1.e-2;
 
+  dealii::Point<dim> center_sphere;
+
   void
   set_parameters() final
   {
@@ -119,7 +121,7 @@ public:
     this->param.start_with_low_order            = true;
     this->param.calculation_of_time_step_size   = TimeStepCalculation::CFL;
     this->param.adaptive_time_stepping          = true;
-    this->param.max_velocity                    = 1.;
+    this->param.max_velocity                    = 3.;
     this->param.cfl                             = cfl_number;
     this->param.cfl_exponent_fe_degree_velocity = 1.5;
     this->param.time_step_size                  = 1.0e-3;
@@ -276,6 +278,10 @@ public:
               std::shared_ptr<dealii::Mapping<dim>> &           mapping,
               std::shared_ptr<MultigridMappings<dim, Number>> & multigrid_mappings) final
   {
+    center_sphere[0] = 0.5;
+    center_sphere[1] = 0.2;
+    center_sphere[2] = 0.2;
+
     auto const lambda_create_triangulation =
       [&](dealii::Triangulation<dim, dim> &                        tria,
           std::vector<dealii::GridTools::PeriodicFacePair<
@@ -284,7 +290,10 @@ public:
           std::vector<unsigned int> const &                        vector_local_refinements) {
         (void)periodic_face_pairs;
         (void)vector_local_refinements;
-        create_sphere_grid<dim>(tria, global_refinements, this->param.grid.triangulation_type);
+        create_sphere_grid<dim>(tria,
+                                global_refinements,
+                                this->param.grid.triangulation_type,
+                                center_sphere);
       };
 
     GridUtilities::create_triangulation_with_multigrid<dim>(grid,
@@ -371,7 +380,7 @@ public:
 
     pp_data.lift_and_drag_data.reference_value = 1.0 / 2.0;
 
-    // surface for calculation of lift and drag coefficients has boundary_ID = 2
+    // surface for calculation of lift and drag coefficients has boundary_ID = 3
     pp_data.lift_and_drag_data.boundary_IDs.insert(3);
 
     pp_data.lift_and_drag_data.directory     = this->output_parameters.directory;
@@ -383,8 +392,10 @@ public:
     pp_data.pressure_difference_data.time_control_data.trigger_every_time_steps = 1;
     pp_data.pressure_difference_data.time_control_data.start_time               = start_time;
     dealii::Point<dim> point_1, point_2;
-    point_1[0]                               = -radius;
-    point_2[0]                               = radius;
+    point_1 = center_sphere;
+    point_2 = center_sphere;
+    point_1[0] += -radius;
+    point_2[0] += radius;
     pp_data.pressure_difference_data.point_1 = point_1;
     pp_data.pressure_difference_data.point_2 = point_2;
 
@@ -404,4 +415,4 @@ public:
 
 #include <exadg/incompressible_navier_stokes/user_interface/implement_get_application.h>
 
-#endif /* APPLICATIONS_INCOMPRESSIBLE_NAVIER_STOKES_TEST_CASES_FLOW_PAST_CYLINDER_H_ */
+#endif /* APPLICATIONS_INCOMPRESSIBLE_NAVIER_STOKES_TEST_CASES_FLOW_PAST_SPHERE_H_ */
