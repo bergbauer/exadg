@@ -26,6 +26,7 @@
 #include <exadg/functions_and_boundary_conditions/linear_interpolation.h>
 
 // flow past cylinder application
+#include "../flow_past_sphere/include/grid.h"
 #include "include/grid.h"
 
 namespace ExaDG
@@ -196,11 +197,12 @@ private:
     this->param.rel_tol_steady = 1.e-8;
 
     // SPATIAL DISCRETIZATION
-    this->param.grid.triangulation_type     = TriangulationType::Distributed;
-    this->param.mapping_degree              = this->param.degree_u;
-    this->param.mapping_degree_coarse_grids = this->param.mapping_degree;
-    this->param.degree_p                    = DegreePressure::MixedOrder;
-    this->param.grid.element_type           = ElementType::Hypercube;
+    this->param.grid.triangulation_type           = TriangulationType::Distributed;
+    this->param.mapping_degree                    = this->param.degree_u;
+    this->param.mapping_degree_coarse_grids       = this->param.mapping_degree;
+    this->param.degree_p                          = DegreePressure::MixedOrder;
+    this->param.grid.element_type                 = ElementType::Hypercube;
+    this->param.grid.create_coarse_triangulations = true;
 
     // convective term
     if(this->param.formulation_convective_term == FormulationConvectiveTerm::DivergenceFormulation)
@@ -342,16 +344,22 @@ private:
             typename dealii::Triangulation<dim>::cell_iterator>> & periodic_face_pairs,
           unsigned int const                                       global_refinements,
           std::vector<unsigned int> const &                        vector_local_refinements) {
-        create_coarse_grid<dim>(tria,
-                                periodic_face_pairs,
-                                this->param.grid.triangulation_type,
-                                cylinder_type,
-                                this->param.grid.element_type);
+        if(cylinder_type == CylinderType::Circular || cylinder_type == CylinderType::Square)
+          create_coarse_grid<dim>(tria,
+                                  periodic_face_pairs,
+                                  this->param.grid.triangulation_type,
+                                  cylinder_type,
+                                  this->param.grid.element_type);
+        else if(cylinder_type == CylinderType::Sphere)
+          FlowPastSphere::create_sphere_grid(tria,
+                                             global_refinements,
+                                             this->param.grid.triangulation_type,
+                                             {0.5, 0.2, 0.2});
 
         if(vector_local_refinements.size() > 0)
           refine_local(tria, vector_local_refinements);
 
-        if(global_refinements > 0)
+        if(cylinder_type != CylinderType::Sphere && global_refinements > 0)
           tria.refine_global(global_refinements);
       };
 
@@ -386,12 +394,17 @@ private:
       pair(2, new dealii::Functions::ZeroFunction<dim>(dim)));
     this->boundary_descriptor->velocity->neumann_bc.insert(
       pair(1, new dealii::Functions::ZeroFunction<dim>(dim)));
+    if(cylinder_type == CylinderType::Sphere)
+      this->boundary_descriptor->velocity->dirichlet_bc.insert(
+        pair(3, new dealii::Functions::ZeroFunction<dim>(dim)));
 
     // fill boundary descriptor pressure
     this->boundary_descriptor->pressure->neumann_bc.insert(0);
     this->boundary_descriptor->pressure->neumann_bc.insert(2);
     this->boundary_descriptor->pressure->dirichlet_bc.insert(
       pair(1, new dealii::Functions::ZeroFunction<dim>(1)));
+    if(cylinder_type == CylinderType::Sphere)
+      this->boundary_descriptor->pressure->neumann_bc.insert(3);
   }
 
   void
@@ -418,11 +431,13 @@ private:
     // write output for visualization of results
     pp_data.output_data.time_control_data.is_active        = this->output_parameters.write;
     pp_data.output_data.time_control_data.start_time       = start_time;
-    pp_data.output_data.time_control_data.trigger_interval = (end_time - start_time) / 20.0;
+    pp_data.output_data.time_control_data.trigger_interval = (end_time - start_time) / 80.0;
     pp_data.output_data.directory          = this->output_parameters.directory + "vtu/";
     pp_data.output_data.filename           = name;
     pp_data.output_data.write_divergence   = true;
-    pp_data.output_data.write_higher_order = false;
+    pp_data.output_data.write_higher_order = true;
+    pp_data.output_data.write_vorticity    = true;
+    pp_data.output_data.write_q_criterion  = true;
     pp_data.output_data.write_processor_id = true;
     pp_data.output_data.write_surface_mesh = true;
     pp_data.output_data.write_boundary_IDs = true;
@@ -442,7 +457,10 @@ private:
       pp_data.lift_and_drag_data.reference_value = 1.0 / 2.0 * pow(U, 2.0) * D * H;
 
     // surface for calculation of lift and drag coefficients has boundary_ID = 2
-    pp_data.lift_and_drag_data.boundary_IDs.insert(2);
+    if(cylinder_type == CylinderType::Sphere)
+      pp_data.lift_and_drag_data.boundary_IDs.insert(3);
+    else
+      pp_data.lift_and_drag_data.boundary_IDs.insert(2);
 
     pp_data.lift_and_drag_data.directory     = this->output_parameters.directory;
     pp_data.lift_and_drag_data.filename_lift = name + "_lift";
@@ -527,13 +545,13 @@ private:
   }
 
   // type of cylinder
-  CylinderType cylinder_type = CylinderType::Circular;
+  CylinderType cylinder_type = CylinderType::Sphere;
 
   // select test case according to Schaefer and Turek benchmark definition: 2D-1/2/3, 3D-1/2/3
   unsigned int test_case = 3; // 1, 2 or 3
 
   ProblemType  problem_type = ProblemType::Unsteady;
-  double const Um = (dim == 2 ? (test_case == 1 ? 0.3 : 1.5) : (test_case == 1 ? 0.45 : 2.25));
+  double const Um = (dim == 2 ? (test_case == 1 ? 0.3 : 1.5) : (test_case == 1 ? 0.45 : 6.75));
 
   double const viscosity = 1.e-3;
 
@@ -560,7 +578,7 @@ private:
     std::vector<dealii::Tensor<1, dim, double>>(n_points_y * n_points_z);
 
   // solver tolerances
-  double const ABS_TOL = 1.e-12;
+  double const ABS_TOL = 1.e-11;
   double const REL_TOL = 1.e-6;
 
   double const ABS_TOL_LINEAR = 1.e-12;

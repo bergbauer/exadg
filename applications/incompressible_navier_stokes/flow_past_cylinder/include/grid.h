@@ -36,7 +36,8 @@ namespace FlowPastCylinder
 enum class CylinderType
 {
   Circular,
-  Square
+  Square,
+  Sphere
 };
 
 // physical dimensions (diameter D and center coordinate Y_C can be varied)

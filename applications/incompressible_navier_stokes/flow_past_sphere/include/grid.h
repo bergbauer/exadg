@@ -276,18 +276,18 @@ create_sphere_grid(dealii::Triangulation<dim> & tria,
           cell->face(f)->set_boundary_id(3);
         // inflow -> id 1
         else if(std::abs((cell->face(f)->center()[0] - center_sphere[0]) + 5. * outer) < 1e-10)
-          cell->face(f)->set_boundary_id(1);
+          cell->face(f)->set_boundary_id(0);
         // symmetry -> id 0
         else if(2. * outer - std::abs((cell->face(f)->center()[1] - center_sphere[1])) < 1e-10 or
                 (dim == 3 and
                  (2. * outer - std::abs(cell->face(f)->center()[2] - center_sphere[2]) < 1e-10)))
-          cell->face(f)->set_boundary_id(0);
+          cell->face(f)->set_boundary_id(2);
         // outflow -> id 2
         else
         {
           AssertThrow(std::abs(cell->face(f)->center()[0] - x_coordinate_outflow) < 1e-10,
                       dealii::ExcInternalError());
-          cell->face(f)->set_boundary_id(2);
+          cell->face(f)->set_boundary_id(1);
         }
       }
 
