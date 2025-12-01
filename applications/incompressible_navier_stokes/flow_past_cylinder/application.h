@@ -451,10 +451,13 @@ private:
     pp_data.lift_and_drag_data.viscosity                                  = viscosity;
 
     double const U = Um * (dim == 2 ? 2. / 3. : 4. / 9.);
+    double const R = D / 2.0;
     if(dim == 2)
       pp_data.lift_and_drag_data.reference_value = 1.0 / 2.0 * pow(U, 2.0) * D;
     else if(dim == 3)
-      pp_data.lift_and_drag_data.reference_value = 1.0 / 2.0 * pow(U, 2.0) * D * H;
+      pp_data.lift_and_drag_data.reference_value =
+        1.0 / 2.0 * pow(U, 2.0) *
+        (cylinder_type == CylinderType::Sphere ? (R * R * dealii::numbers::PI) : (D * H));
 
     // surface for calculation of lift and drag coefficients has boundary_ID = 2
     if(cylinder_type == CylinderType::Sphere)
