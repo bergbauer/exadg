@@ -681,6 +681,10 @@ SpatialOperatorBase<dim, Number>::initialize_calculators_for_derived_quantities(
                                     get_dof_index_velocity_scalar(),
                                     get_quad_index_velocity_standard(),
                                     false /*compressible_flow*/);
+  lambda2_criterion_calculator.initialize(*matrix_free,
+                                          get_dof_index_velocity(),
+                                          get_dof_index_velocity_scalar(),
+                                          get_quad_index_velocity_standard());
 }
 
 template<int dim, typename Number>
@@ -1366,6 +1370,16 @@ SpatialOperatorBase<dim, Number>::compute_q_criterion(VectorType &       dst,
                                                       VectorType const & src) const
 {
   q_criterion_calculator.compute(dst, src);
+
+  inverse_mass_velocity_scalar.apply(dst, dst);
+}
+
+template<int dim, typename Number>
+void
+SpatialOperatorBase<dim, Number>::compute_lambda2_criterion(VectorType &       dst,
+                                                            VectorType const & src) const
+{
+  lambda2_criterion_calculator.compute(dst, src);
 
   inverse_mass_velocity_scalar.apply(dst, dst);
 }

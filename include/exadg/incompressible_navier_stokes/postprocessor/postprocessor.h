@@ -106,6 +106,7 @@ private:
   SolutionField<dim, Number> vorticity_magnitude;
   SolutionField<dim, Number> streamfunction;
   SolutionField<dim, Number> q_criterion;
+  SolutionField<dim, Number> lambda2_criterion;
   SolutionField<dim, Number> cfl_vector;
 
   TimeControl                time_control_mean_velocity;

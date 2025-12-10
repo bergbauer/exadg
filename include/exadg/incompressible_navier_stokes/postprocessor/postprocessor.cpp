@@ -176,6 +176,11 @@ PostProcessor<dim, Number>::do_postprocessing(VectorType const &     velocity,
       q_criterion.evaluate(velocity);
       additional_fields_vtu.push_back(&q_criterion);
     }
+    if(pp_data.output_data.write_lambda2_criterion)
+    {
+      lambda2_criterion.evaluate(velocity);
+      additional_fields_vtu.push_back(&lambda2_criterion);
+    }
     if(pp_data.output_data.mean_velocity.is_active)
     {
       additional_fields_vtu.push_back(&mean_velocity);
@@ -401,6 +406,36 @@ PostProcessor<dim, Number>::initialize_derived_fields()
     q_criterion.reinit();
   }
 
+  // lambda2 criterion
+  if(pp_data.output_data.write_lambda2_criterion)
+  {
+    lambda2_criterion.type              = SolutionFieldType::scalar;
+    lambda2_criterion.name              = "lambda2_criterion";
+    lambda2_criterion.dof_handler       = &navier_stokes_operator->get_dof_handler_u_scalar();
+    lambda2_criterion.initialize_vector = [&](VectorType & dst) {
+        navier_stokes_operator->initialize_vector_velocity_scalar(dst);
+    };
+    lambda2_criterion.recompute_solution_field = [&](VectorType & dst, VectorType const & src) {
+        navier_stokes_operator->compute_lambda2_criterion(dst, src);
+
+      // Absolute normalization
+      // Compute local minimum
+      Number local_min = std::numeric_limits<Number>::max();
+      for(unsigned int i = 0; i < dst.size(); ++i)
+        if(dst.in_local_range(i))
+          local_min = std::min(local_min, dst[i]);
+
+      // Compute global minimum using MPI reduction
+      Number const global_min = dealii::Utilities::MPI::min(local_min, dst.get_mpi_communicator());
+
+      // Avoid division by zero
+      if(global_min < -std::numeric_limits<Number>::epsilon())
+        dst *= 1. / std::abs(global_min);
+    };
+
+    lambda2_criterion.reinit();
+  }
+
   // mean velocity
   if(pp_data.output_data.mean_velocity.is_active)
   {
@@ -449,6 +484,7 @@ PostProcessor<dim, Number>::invalidate_derived_fields()
   vorticity_magnitude.invalidate();
   streamfunction.invalidate();
   q_criterion.invalidate();
+  lambda2_criterion.invalidate();
   cfl_vector.invalidate();
   mean_velocity.invalidate();
 }

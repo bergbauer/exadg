@@ -348,6 +348,10 @@ public:
   void
   compute_q_criterion(VectorType & dst, VectorType const & src) const;
 
+  // Lambda2 criterion
+  void
+  compute_lambda2_criterion(VectorType & dst, VectorType const & src) const;
+
   // get the current visosity field as vector
   void
   access_viscosity(VectorType & dst, VectorType const & src) const;
@@ -615,6 +619,7 @@ protected:
   ViscosityCalculator<dim, Number>  viscosity_calculator;
   MagnitudeCalculator<dim, Number>  magnitude_calculator;
   QCriterionCalculator<dim, Number> q_criterion_calculator;
+  Lambda2CriterionCalculator<dim, Number> lambda2_criterion_calculator;
 
   MPI_Comm const mpi_comm;
 

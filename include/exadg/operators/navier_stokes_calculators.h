@@ -272,6 +272,49 @@ private:
   bool         compressible_flow;
 };
 
+template<int dim, typename Number>
+class Lambda2CriterionCalculator
+{
+private:
+  typedef Lambda2CriterionCalculator<dim, Number> This;
+
+  typedef dealii::LinearAlgebra::distributed::Vector<Number> VectorType;
+
+  typedef dealii::VectorizedArray<Number>                                  scalar;
+  typedef dealii::Tensor<2, dim, dealii::VectorizedArray<Number>>          tensor;
+  typedef dealii::SymmetricTensor<2, dim, dealii::VectorizedArray<Number>> symmetric_tensor;
+
+  typedef std::pair<unsigned int, unsigned int> Range;
+
+  typedef CellIntegrator<dim, dim, Number> CellIntegratorVector;
+  typedef CellIntegrator<dim, 1, Number>   CellIntegratorScalar;
+
+public:
+  Lambda2CriterionCalculator();
+
+  void
+  initialize(dealii::MatrixFree<dim, Number> const & matrix_free_in,
+             unsigned int const                      dof_index_u_in,
+             unsigned int const                      dof_index_u_scalar_in,
+             unsigned int const                      quad_index_in);
+
+  void
+  compute(VectorType & dst, VectorType const & src) const;
+
+private:
+  void
+  cell_loop(dealii::MatrixFree<dim, Number> const & matrix_free,
+            VectorType &                            dst,
+            VectorType const &                      src,
+            Range const &                           cell_range) const;
+
+  dealii::MatrixFree<dim, Number> const * matrix_free;
+
+  unsigned int dof_index_u;
+  unsigned int dof_index_u_scalar;
+  unsigned int quad_index;
+};
+
 } // namespace ExaDG
 
 #endif /* EXADG_OPERATORS_NAVIER_STOKES_CALCULATORS_H_ */

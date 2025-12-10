@@ -397,6 +397,109 @@ QCriterionCalculator<dim, Number>::cell_loop(dealii::MatrixFree<dim, Number> con
   }
 }
 
+template<int dim, typename Number>
+Lambda2CriterionCalculator<dim, Number>::Lambda2CriterionCalculator()
+  : matrix_free(nullptr), dof_index_u(0), dof_index_u_scalar(0), quad_index(0)
+{
+}
+
+template<int dim, typename Number>
+void
+Lambda2CriterionCalculator<dim, Number>::initialize(
+  dealii::MatrixFree<dim, Number> const & matrix_free_in,
+  unsigned int const                      dof_index_u_in,
+  unsigned int const                      dof_index_u_scalar_in,
+  unsigned int const                      quad_index_in)
+{
+  matrix_free        = &matrix_free_in;
+  dof_index_u        = dof_index_u_in;
+  dof_index_u_scalar = dof_index_u_scalar_in;
+  quad_index         = quad_index_in;
+}
+
+template<int dim, typename Number>
+void
+Lambda2CriterionCalculator<dim, Number>::compute(VectorType & dst, VectorType const & src) const
+{
+  dst = 0;
+
+  matrix_free->cell_loop(&This::cell_loop, this, dst, src);
+}
+
+template<int dim, typename Number>
+void
+Lambda2CriterionCalculator<dim, Number>::cell_loop(
+  dealii::MatrixFree<dim, Number> const & matrix_free,
+  VectorType &                            dst,
+  VectorType const &                      src,
+  Range const &                           cell_range) const
+{
+  CellIntegratorVector integrator_vector(matrix_free, dof_index_u, quad_index);
+  CellIntegratorScalar integrator_scalar(matrix_free, dof_index_u_scalar, quad_index);
+
+  for(unsigned int cell = cell_range.first; cell < cell_range.second; ++cell)
+  {
+    integrator_vector.reinit(cell);
+    integrator_vector.gather_evaluate(src, dealii::EvaluationFlags::gradients);
+
+    integrator_scalar.reinit(cell);
+
+    for(unsigned int q = 0; q < integrator_scalar.n_q_points; q++)
+    {
+      tensor const     grad_u = integrator_vector.get_gradient(q);
+      tensor           Omega;
+      symmetric_tensor S;
+      for(unsigned int i = 0; i < dim; i++)
+        for(unsigned int j = 0; j < dim; j++)
+        {
+          Omega[i][j] = 0.5 * (grad_u[i][j] - grad_u[j][i]);
+          S[i][j]     = 0.5 * (grad_u[i][j] + grad_u[j][i]);
+        }
+
+      symmetric_tensor Omega_squared;
+      for(unsigned int i = 0; i < dim; i++)
+        for(unsigned int j = 0; j < dim; j++)
+        {
+          scalar sum = 0.0;
+          for(unsigned int k = 0; k < dim; ++k)
+            sum += Omega[i][k] * Omega[k][j];
+          Omega_squared[i][j] = sum;
+        }
+
+      symmetric_tensor S_squared;
+      for(unsigned int i = 0; i < dim; i++)
+        for(unsigned int j = 0; j < dim; j++)
+        {
+          scalar sum = 0.0;
+          for(unsigned int k = 0; k < dim; ++k)
+            sum += S[i][k] * S[k][j];
+          S_squared[i][j] = sum;
+        }
+
+      symmetric_tensor const matrix = Omega_squared + S_squared;
+
+      scalar lambda2;
+      for(unsigned int v = 0; v < matrix_free.n_active_entries_per_cell_batch(cell); ++v)
+      {
+        dealii::SymmetricTensor<2, dim, Number> matrix_v;
+        for(unsigned int i = 0; i < dim; i++)
+          for(unsigned int j = 0; j < dim; j++)
+          {
+            matrix_v[i][j] = matrix[i][j][v];
+          }
+
+        lambda2[v] = eigenvalues(matrix_v)[1];
+      }
+
+      // velocity gradient based normalization
+      // lambda2 = lambda2 / grad_u.norm_square();
+
+      integrator_scalar.submit_value(lambda2, q);
+    }
+    integrator_scalar.integrate_scatter(dealii::EvaluationFlags::values, dst);
+  }
+}
+
 template class DivergenceCalculator<2, float>;
 template class DivergenceCalculator<2, double>;
 
@@ -432,5 +535,11 @@ template class QCriterionCalculator<2, double>;
 
 template class QCriterionCalculator<3, float>;
 template class QCriterionCalculator<3, double>;
+
+template class Lambda2CriterionCalculator<2, float>;
+template class Lambda2CriterionCalculator<2, double>;
+
+template class Lambda2CriterionCalculator<3, float>;
+template class Lambda2CriterionCalculator<3, double>;
 
 } // namespace ExaDG

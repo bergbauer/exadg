@@ -42,6 +42,7 @@ struct OutputData : public OutputDataBase
       write_vorticity_magnitude(false),
       write_streamfunction(false),
       write_q_criterion(false),
+      write_lambda2_criterion(false),
       mean_velocity(TimeControlData()),
       write_cfl(false)
   {
@@ -60,6 +61,7 @@ struct OutputData : public OutputDataBase
     print_parameter(pcout, "Write vorticity magnitude", write_vorticity_magnitude);
     print_parameter(pcout, "Write streamfunction", write_streamfunction);
     print_parameter(pcout, "Write Q criterion", write_q_criterion);
+    print_parameter(pcout, "Write Lambda2 criterion", write_lambda2_criterion);
 
     mean_velocity.print(pcout, unsteady);
   }
@@ -93,6 +95,8 @@ struct OutputData : public OutputDataBase
 
   // write Q criterion
   bool write_q_criterion;
+
+  bool write_lambda2_criterion;
 
   //  Average velocity field over time for statistically steady, turbulent
   //  flow problems in order to visualize the time-averaged velocity field.
